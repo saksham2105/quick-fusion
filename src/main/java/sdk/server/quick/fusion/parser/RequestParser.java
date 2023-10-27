@@ -29,6 +29,7 @@ public class RequestParser {
                setUrlPattern.setAccessible(true);
                setType.invoke(httpRequest, requestType);
                int questionMarkIndex = urlPattern.indexOf("?");
+               setUrlPattern.invoke(httpRequest, urlPattern);
                if (questionMarkIndex != -1) {
                    setUrlPattern.invoke(httpRequest, urlPattern.substring(0, questionMarkIndex));
                    //TODO: Extract query params

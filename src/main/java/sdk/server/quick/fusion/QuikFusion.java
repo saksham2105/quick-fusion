@@ -6,6 +6,7 @@ import sdk.server.quick.fusion.exceptions.QuikFusionException;
 import sdk.server.quick.fusion.interfaces.HttpServlet;
 import sdk.server.quick.fusion.model.HttpRequest;
 import sdk.server.quick.fusion.model.HttpResponse;
+import sdk.server.quick.fusion.model.ResponseWriter;
 import sdk.server.quick.fusion.parser.RequestParser;
 
 import java.io.BufferedReader;
@@ -24,19 +25,11 @@ import java.util.Map;
 
 public class QuikFusion {
 
-    private static OutputStreamWriter writer;
-    public static BufferedReader reader;
-    private static Map<String, HttpServlet> urlToServletMapping;
+    private static Map<String, HttpServlet> urlToServletMapping = new HashMap<>();
 
-    public static void main(String[] args) {
-       start(9000);
-    }
-
-    private static void init() throws Exception {
-        urlToServletMapping = new HashMap<>();
+    private static void init(String basePackage) throws Exception {
         String baseDirectory = "src/main/java";
-        String packageToScan = getBasePackage();
-        List<Class<?>> classesInPackage = scanClassesInPackage(baseDirectory, packageToScan);
+        List<Class<?>> classesInPackage = scanClassesInPackage(baseDirectory, basePackage);
 
         for (Class<?> clazz : classesInPackage) {
             QuikFusionWebServlet quikFusionWebServlet = clazz.getAnnotation(QuikFusionWebServlet.class);
@@ -85,12 +78,24 @@ public class QuikFusion {
     }
     public static void start(int port) {
         try {
-            init();
+            StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
+            String basePackage = "";
+            if (stackTrace.length >= 3) {
+                String callingClassName = stackTrace[2].getClassName();
+                int lastDotIndex = callingClassName.lastIndexOf('.');
+                if (lastDotIndex >= 0) {
+                    basePackage = callingClassName.substring(0, lastDotIndex);
+                    basePackage = basePackage.substring(0, basePackage.indexOf("."));
+                }
+            }
+
+            System.out.println("Quick Fusion has Started on the port number : " + port);
+            init(basePackage);
             ServerSocket serverSocket = new ServerSocket(port);
             while (true) {
                 Socket clientSocket = serverSocket.accept();
                 InputStream inputStream = clientSocket.getInputStream();
-                reader = new BufferedReader(new InputStreamReader(inputStream));
+                BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
                 StringBuilder requestContent = new StringBuilder();
                 String line;
                 while ((line = reader.readLine()) != null) {
@@ -108,17 +113,26 @@ public class QuikFusion {
                 HttpResponse httpResponse = new HttpResponse();
                 OutputStream outputStream = clientSocket.getOutputStream();
                 Class responseClass = httpResponse.getClass();
-                Method setWriter = responseClass.getDeclaredMethod("setWriter", OutputStreamWriter.class);
-                writer = new OutputStreamWriter(outputStream);
+                OutputStreamWriter writer = new OutputStreamWriter(outputStream);
+
+                ResponseWriter responseWriter = new ResponseWriter();
+
+                Class responseWriterClass = responseWriter.getClass();
+
+                Method setOutputStreamWriter = responseWriterClass.getDeclaredMethod("setOutputStreamWriter", OutputStreamWriter.class);
+                setOutputStreamWriter.setAccessible(true);
+                setOutputStreamWriter.invoke(responseWriter, writer);
+
+                Method setWriter = responseClass.getDeclaredMethod("setWriter", ResponseWriter.class);
                 setWriter.setAccessible(true);
-                setWriter.invoke(httpResponse, writer);
+                setWriter.invoke(httpResponse, responseWriter);
+
                 if (servlet != null && httpRequest.getType().equals(RequestType.GET)) {
                      servlet.get(httpRequest, httpResponse);
                 }
                 if (servlet != null && httpRequest.getType().equals(RequestType.POST)) {
                     servlet.post(httpRequest, httpResponse);
                 }
-                writer.flush();
                 clientSocket.close();
             }
         } catch (Exception exception) {
