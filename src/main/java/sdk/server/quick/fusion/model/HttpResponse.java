@@ -19,18 +19,13 @@ public class HttpResponse {
         return this.statusCode;
     }
     public ResponseType getType() {return this.type;}
-    private void setWriter(ResponseWriter writer) {this.writer = writer;}
-    public ResponseWriter getWriter() throws Exception {
+    private void setWriter(ResponseWriter writer) throws Exception {
+        this.writer = writer;
         if (this.statusCode == 0) {
             this.statusCode = 200;
         }
-        try {
-            if (this.type == null) {
-                this.setType(ResponseType.TEXT_HTML);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();;
-            return null;
+        if (this.type == null) {
+            this.setType(ResponseType.TEXT_HTML);
         }
         Class responseWriterClass = this.writer.getClass();
 
@@ -42,6 +37,11 @@ public class HttpResponse {
         setResponseType.setAccessible(true);
         setResponseType.invoke(this.writer, this.type);
 
+        Method setBasicHeader = responseWriterClass.getDeclaredMethod("setBasicHeader");
+        setBasicHeader.setAccessible(true);
+        setBasicHeader.invoke(this.writer);
+    }
+    public ResponseWriter getWriter() throws Exception {
         return this.writer;
     }
 }

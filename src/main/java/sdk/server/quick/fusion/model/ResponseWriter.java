@@ -2,6 +2,7 @@ package sdk.server.quick.fusion.model;
 
 import sdk.server.quick.fusion.enums.ResponseType;
 
+import java.io.IOException;
 import java.io.OutputStreamWriter;
 
 public class ResponseWriter {
@@ -19,10 +20,15 @@ public class ResponseWriter {
         this.responseType = responseType;
     }
 
-    public void write(String content) throws Exception {
+    private void setBasicHeader() throws IOException {
         StringBuilder stringBuilder = new StringBuilder();
         stringBuilder.append(String.format("HTTP/1.1 %d OK\r\n", this.statusCode));
         stringBuilder.append(String.format("Content-Type: %s\r\n\r\n", this.responseType.getMimeType()));
+        this.outputStreamWriter.write(stringBuilder.toString());
+    }
+
+    public void write(String content) throws Exception {
+        StringBuilder stringBuilder = new StringBuilder();
         stringBuilder.append(content);
         this.outputStreamWriter.write(stringBuilder.toString());
         this.outputStreamWriter.flush();
