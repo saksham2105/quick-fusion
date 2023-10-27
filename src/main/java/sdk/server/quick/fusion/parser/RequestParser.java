@@ -21,7 +21,7 @@ public class RequestParser {
                 String value = line.substring(delimiterIndex + 2);
             } else {
                String[] requestParameters = line.split(" ");
-               RequestType requestType = RequestType.valueOf(requestParameters[0]);
+               RequestType requestType = RequestType.valueOf(requestParameters[0] != null ? requestParameters[0] : RequestType.GET.name());
                String urlPattern = requestParameters[1];
                Method setType = clazz.getDeclaredMethod("setType", RequestType.class);
                Method setUrlPattern = clazz.getDeclaredMethod("setUrlPattern", String.class);
